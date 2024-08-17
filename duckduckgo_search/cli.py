@@ -8,10 +8,10 @@ from pathlib import Path
 from urllib.parse import unquote
 
 import click
-import primp
+import httpx
 
 from .duckduckgo_search import DDGS
-from .utils import _expand_proxy_tb_alias, json_dumps, json_loads
+from .utils import _expand_proxy_tb_alias, _get_random_headers, _get_random_ssl_context, json_dumps, json_loads
 from .version import __version__
 
 logger = logging.getLogger(__name__)
@@ -92,12 +92,19 @@ def _sanitize_keywords(keywords):
 
 def _download_file(url, dir_path, filename, proxy, verify):
     try:
-        resp = primp.Client(proxy=proxy, impersonate="chrome_131", timeout=10, verify=verify).get(url)
-        if resp.status_code == 200:
-            with open(os.path.join(dir_path, filename[:200]), "wb") as file:
-                file.write(resp.content)
+        resp = httpx.get(
+            url,
+            headers=_get_random_headers(),
+            proxy=proxy,
+            timeout=10,
+            follow_redirects=True,
+            verify=_get_random_ssl_context(),
+        )
+        resp.raise_for_status()
+        with open(os.path.join(dir_path, filename[:200]), "wb") as file:
+            file.write(resp.content)
     except Exception as ex:
-        logger.debug(f"download_file url={url} {type(ex).__name__} {ex}")
+        logger.info(f"download_file url={url} {type(ex).__name__} {ex}")
 
 
 def _download_results(keywords, results, function_name, proxy=None, threads=None, verify=True, pathname=None):
@@ -149,7 +156,7 @@ def version():
 @click.option(
     "-m",
     "--model",
-    prompt="""DuckDuckGo AI chat. Choose a model: 
+    prompt="""DuckDuckGo AI chat. Choose a model:
 [1]: gpt-4o-mini
 [2]: claude-3-haiku
 [3]: llama-3.1-70b

@@ -7,12 +7,11 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from functools import cached_property
 from itertools import cycle, islice
-from random import choice
 from threading import Event
 from types import TracebackType
-from typing import cast
+from typing import Any
 
-import primp  # type: ignore
+import httpx
 
 try:
     from lxml.etree import _Element
@@ -28,6 +27,8 @@ from .utils import (
     _calculate_distance,
     _expand_proxy_tb_alias,
     _extract_vqd,
+    _get_random_headers,
+    _get_random_ssl_context,
     _normalize,
     _normalize_url,
     _text_extract_json,
@@ -41,17 +42,6 @@ class DDGS:
     """DuckDuckgo_search class to get search results from duckduckgo.com."""
 
     _executor: ThreadPoolExecutor = ThreadPoolExecutor()
-    _impersonates = (
-        "chrome_100", "chrome_101", "chrome_104", "chrome_105", "chrome_106", "chrome_107", "chrome_108", 
-        "chrome_109", "chrome_114", "chrome_116", "chrome_117", "chrome_118", "chrome_119", "chrome_120", 
-        "chrome_123", "chrome_124", "chrome_126", "chrome_127", "chrome_128", "chrome_129", "chrome_130",
-        "chrome_131",
-        "safari_ios_16.5", "safari_ios_17.2", "safari_ios_17.4.1",
-        "safari_15.3", "safari_15.5", "safari_15.6.1", "safari_16", "safari_16.5", 
-        "safari_17.0", "safari_17.2.1", "safari_17.4.1", "safari_17.5", "safari_18", 
-        "safari_ipad_18",
-        "edge_101", "edge_122", "edge_127",
-    )  # fmt: skip
 
     def __init__(
         self,
@@ -75,17 +65,15 @@ class DDGS:
         if not proxy and proxies:
             warnings.warn("'proxies' is deprecated, use 'proxy' instead.", stacklevel=1)
             self.proxy = proxies.get("http") or proxies.get("https") if isinstance(proxies, dict) else proxies
-        self.headers = headers if headers else {}
+        self.headers = headers if headers else _get_random_headers()
         self.headers["Referer"] = "https://duckduckgo.com/"
-        self.client = primp.Client(
+        self.client = httpx.Client(
             headers=self.headers,
             proxy=self.proxy,
             timeout=timeout,
-            cookie_store=True,
-            referer=True,
-            impersonate=choice(self._impersonates),
             follow_redirects=False,
-            verify=verify,
+            http2=True,
+            verify=_get_random_ssl_context() if verify else False,
         )
         self._exception_event = Event()
         self._chat_messages: list[dict[str, str]] = []
@@ -101,7 +89,7 @@ class DDGS:
         exc_val: BaseException | None = None,
         exc_tb: TracebackType | None = None,
     ) -> None:
-        pass
+        self.client.__exit__(exc_type, exc_val, exc_tb)
 
     @cached_property
     def parser(self) -> LHTMLParser:
@@ -114,7 +102,7 @@ class DDGS:
         url: str,
         params: dict[str, str] | None = None,
         content: bytes | None = None,
-        data: dict[str, str] | bytes | None = None,
+        data: dict[str, Any] | None = None,
     ) -> bytes:
         if self._exception_event.is_set():
             raise DuckDuckGoSearchException("Exception occurred in previous call.")
@@ -127,7 +115,7 @@ class DDGS:
             raise DuckDuckGoSearchException(f"{url} {type(ex).__name__}: {ex}") from ex
         logger.debug(f"_get_url() {resp.url} {resp.status_code} {len(resp.content)}")
         if resp.status_code == 200:
-            return cast(bytes, resp.content)
+            return resp.content
         self._exception_event.set()
         if resp.status_code in (202, 301, 403):
             raise RatelimitException(f"{resp.url} {resp.status_code} Ratelimit")
@@ -186,9 +174,9 @@ class DDGS:
         data = ",".join(x for line in resp.text.rstrip("[DONE]LIMT_CVRSA\n").split("data:") if (x := line.strip()))
         data = json_loads("[" + data + "]")
 
-        results = []
+        results: list[str] = []
         for x in data:
-            if x.get("action") == "error":
+            if isinstance(x, dict) and x.get("action") == "error":
                 err_message = x.get("type", "")
                 if x.get("status") == 429:
                     raise (
@@ -197,7 +185,7 @@ class DDGS:
                         else RatelimitException(err_message)
                     )
                 raise DuckDuckGoSearchException(err_message)
-            elif message := x.get("message"):
+            elif isinstance(x, dict) and (message := x.get("message")):
                 results.append(message)
         result = "".join(results)
 
