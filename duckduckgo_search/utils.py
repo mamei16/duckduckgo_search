@@ -60,13 +60,20 @@ def _text_extract_json(html_bytes: bytes, keywords: str) -> list[dict[str, str]]
     """text(backend="api") -> extract json from html."""
     try:
         start = html_bytes.index(b"DDG.pageLayout.load('d',") + 24
+    except Exception as ex:
+        raise DuckDuckGoSearchException(f"_text_extract_json() {keywords=} {type(ex).__name__}: {ex}") from ex
+
+    try:
+        end = html_bytes.index(b");DDG.duckbar.load(", start)
+    except ValueError:
+        pass
+
+    try:
         end = html_bytes.index(b");DDG.duckbar.loadModule(", start)
         data = html_bytes[start:end]
-        #print(str(data))
         result: list[dict[str, str]] = json_loads(data)
         return result
     except Exception as ex:
-        print(str(html_bytes))
         raise DuckDuckGoSearchException(f"_text_extract_json() {keywords=} {type(ex).__name__}: {ex}") from ex
     raise DuckDuckGoSearchException(f"_text_extract_json() {keywords=} return None")
 
