@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import gzip
 import re
 from decimal import Decimal
 from html import unescape
 from math import atan2, cos, radians, sin, sqrt
+from pathlib import Path
+from random import choice, choices
 from typing import Any
 from urllib.parse import unquote
 
@@ -57,11 +60,13 @@ def _text_extract_json(html_bytes: bytes, keywords: str) -> list[dict[str, str]]
     """text(backend="api") -> extract json from html."""
     try:
         start = html_bytes.index(b"DDG.pageLayout.load('d',") + 24
-        end = html_bytes.index(b");DDG.duckbar.load(", start)
+        end = html_bytes.index(b");DDG.duckbar.loadModule(", start)
         data = html_bytes[start:end]
+        #print(str(data))
         result: list[dict[str, str]] = json_loads(data)
         return result
     except Exception as ex:
+        print(str(html_bytes))
         raise DuckDuckGoSearchException(f"_text_extract_json() {keywords=} {type(ex).__name__}: {ex}") from ex
     raise DuckDuckGoSearchException(f"_text_extract_json() {keywords=} return None")
 
@@ -89,3 +94,20 @@ def _calculate_distance(lat1: Decimal, lon1: Decimal, lat2: Decimal, lon2: Decim
 def _expand_proxy_tb_alias(proxy: str | None) -> str | None:
     """Expand "tb" to a full proxy URL if applicable."""
     return "socks5://127.0.0.1:9150" if proxy == "tb" else proxy
+
+
+### HEADERS section ###
+with gzip.open(f"{Path(__file__).parent}/headers.json.gz", "rb") as f:
+    DEFAULT_HEADERS = json_loads(f.read())
+HEADERS: list[dict[str, str]] = [item["header"] for item in DEFAULT_HEADERS if isinstance(item["header"], dict)]
+HEADERS_PROB: list[float] = [item["probability"] for item in DEFAULT_HEADERS if isinstance(item["probability"], float)]
+
+
+def _get_probability_headers() -> dict[str, str]:
+    """Get probability headers using probability."""
+    return choices(HEADERS, weights=HEADERS_PROB)[0]
+
+
+def _get_random_headers() -> dict[str, str]:
+    """Get random headers."""
+    return choice(HEADERS)
