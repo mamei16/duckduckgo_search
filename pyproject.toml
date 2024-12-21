@@ -30,7 +30,7 @@ classifiers = [
 ]
 dependencies = [
     "click>=8.1.7",
-    "pip @ https://github.com/mamei16/primp/releases/download/v0.9.1/primp-0.9.1-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+    "primp @ https://github.com/mamei16/primp/releases/download/v0.9.1/primp-0.9.1-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
 ]
 dynamic = ["version"]
 
