@@ -28,11 +28,8 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-dependencies = [
-    "click>=8.1.7",
-    "primp @ https://github.com/mamei16/primp/releases/download/v0.9.1/primp-0.9.1-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
-]
-dynamic = ["version"]
+
+dynamic = ["version", "dependencies"]
 
 [project.urls]  # Optional
 "Homepage" = "https://github.com/deedy5/duckduckgo_search"
