@@ -453,8 +453,7 @@ def get_dependencies():
             primp_dependency = f"primp @ {url_prefix}{primp_platform_to_suffix[tag]}"
             dependencies.append(primp_dependency)
             break
-    with open("plat.txt", "w") as f:
-        f.write(str(list(platform_tags())))
+
     if primp_dependency is None:
         raise ValueError("Could not find a primp wheel that is compatible with your platform")
     return dependencies
