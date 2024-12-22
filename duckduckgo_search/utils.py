@@ -60,13 +60,13 @@ def _text_extract_json(html_bytes: bytes, keywords: str) -> list[dict[str, str]]
     """text(backend="api") -> extract json from html."""
     try:
         start = html_bytes.index(b"DDG.pageLayout.load('d',") + 24
-        end = html_bytes.index(b");DDG.duckbar.load(", start)
+        end = html_bytes.index(b");DDG.", start)
         data = html_bytes[start:end]
         result: list[dict[str, str]] = json_loads(data)
         return result
     except Exception as ex:
         raise DuckDuckGoSearchException(f"_text_extract_json() {keywords=} {type(ex).__name__}: {ex}") from ex
-    raise DuckDuckGoSearchException(f"_text_extract_json() {keywords=} return None")
+    raise DuckDuckGoSearchException(f"_text_extract_json() {keywords=} return None ") 
 
 
 def _normalize(raw_html: str) -> str:
